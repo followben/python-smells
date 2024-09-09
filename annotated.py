@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 import uvicorn
 import time
 
+# Talking point: use of hardcoded sqlite database
 engine = create_engine("sqlite:///./test.db")
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -48,7 +49,7 @@ class Article(Base):
     author = relationship("User", back_populates="articles")
 
 
-# Auto-create schema
+# Talking point: Would you auto-create schema
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -59,12 +60,11 @@ def get_db():
     return db
 
 # Issue: Needs annotated type hints
-# Issue: Missing response validation/ serialization
+# Issue: Missing validation/ serialization for both requests and responses
 @app.post("/users/")
 def create_user(username: Any, email: Any, password: Any, db: SessionLocal = Depends(get_db)):
     try:
         # Issue: use of datetime.now() instead of utcnow()
-        # Issue: not validating input (should use Pydantic models)
         # Error: storing password in plaintext
         db_user = User(username=username, email=email, password=password, created_at=datetime.now())
         db.add(db_user)
@@ -82,7 +82,10 @@ def get_user(username: str, db: SessionLocal = Depends(get_db)):
     user = db.execute(f"SELECT * FROM users WHERE username = '{username}'").first()
     if user is None:
         raise Exception("User not found") # Error: Not raising HTTPException/ 404
-    return {"id": user.id, "username": user.username, "email": user.email, "password": user.password} # Error: Leaking sensitive information
+    # Issue: Inconsistent response shape
+    # Talking point: Use on natural keys
+    # Error: Leaking sensitive information
+    return {"username": user.username, "email": user.email, "password": user.password} 
 
 # Issue: Not using type hints consistently
 @app.get("/health")
@@ -103,10 +106,10 @@ def get_all_users(db: SessionLocal = Depends(get_db)):
                 "title": article.title,
                 "content": article.content[:100]  # Inefficient processing
             })
+        # Issue: Inconsistent response shape
         result.append({
             "id": user.id,
             "username": user.username,
-            "email": user.email,
             "articles": processed_articles
         })
     return result
@@ -117,5 +120,6 @@ def slow_operation():
     time.sleep(5)  # Just faking a slow, long-running operation
     return {"result": "Done"}
 
+# Talking point: hardcoded uvicorn command/ config
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, debug=DEBUG)

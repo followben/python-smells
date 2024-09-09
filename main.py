@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends
 from typing import Any
 import uvicorn
 import time
@@ -33,7 +33,7 @@ def get_user(username: str, db: SessionLocal = Depends(get_db)):
     user = db.execute(f"SELECT * FROM users WHERE username = '{username}'").first()
     if user is None:
         raise Exception("User not found")
-    return {"id": user.id, "username": user.username, "email": user.email, "password": user.password}
+    return {"username": user.username, "email": user.email, "password": user.password}
 
 @app.get("/users")
 def get_all_users(db: SessionLocal = Depends(get_db)):
@@ -49,7 +49,6 @@ def get_all_users(db: SessionLocal = Depends(get_db)):
                 "content": article.content[:100]
             })
         result.append({
-            "id": user.id,
             "username": user.username,
             "email": user.email,
             "articles": processed_articles
